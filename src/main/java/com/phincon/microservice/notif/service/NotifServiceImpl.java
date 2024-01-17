@@ -20,6 +20,9 @@ public class NotifServiceImpl implements NotifService {
     private final NotificationRepository notificationRepository;
 
     @Autowired
+    JmsTemplate jmsTemplate;
+
+    @Autowired
     public NotifServiceImpl(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
     }
@@ -29,14 +32,23 @@ public class NotifServiceImpl implements NotifService {
         log.info("Notification sent Orchestration: " + orders.getPayload().getStatus());
         sendNotif(new Notification(UUID.randomUUID().toString(),
                 orders.getPayload().getId(),
-                orders.getPayload().getStatus(),
+                "Success",
                 new Timestamp(System.currentTimeMillis()))).subscribe();
     }
 
     @Override
     public Mono<Notification> sendNotif(Notification notif) {
-        Mono<Notification> notificationMono = notificationRepository.save(notif);
-        log.info("Notification sent API: " + notif);
-        return notificationMono;
+        try {
+            Mono<Notification> notificationMono = notificationRepository.save(notif);
+            log.info("Notification sent API: " + notif);
+            jmsTemplate.convertAndSend("queue.status", "Success");
+            return notificationMono;
+        }catch (Exception e) {
+            log.info("Notification failed: " + e.getMessage());
+            jmsTemplate.convertAndSend("queue.status", "Failed");
+            jmsTemplate.convertAndSend("queue.notif", notif);
+            return Mono.just(notif);
+        }
+
     }
 }
