@@ -1,8 +1,5 @@
 package com.phincon.microservice.notif.model;
 
-import lombok.Data;
-
-
 public class Orders {
     String id;
     String productId;
